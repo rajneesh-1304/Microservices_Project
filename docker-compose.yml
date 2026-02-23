@@ -1,0 +1,110 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - '5672:5672'    # AMQP protocol
+      - '15672:15672'  # web interface
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+
+  db:
+    image: postgres:15
+    container_name: microservice-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+    environment:
+      PORT: ${PORT}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
+      DB_NAME: ${DB_NAME1}
+      RABBITMQ_URL: ${RABBITMQ_URL}
+
+  sales-service:
+    build:
+      context: ./sales
+      dockerfile: Dockerfile
+    container_name: sales-service
+    ports:
+      - "3001:3001"
+    depends_on:
+      - db
+    environment:
+      PORT: ${PORT1}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
+      DB_NAME: ${DB_NAME2}
+      RABBITMQ_URL: ${RABBITMQ_URL}
+
+  billing-service:
+    build:
+      context: ./billing
+      dockerfile: Dockerfile
+    container_name: billing-service
+    ports:
+      - "3002:3002"
+    depends_on:
+      - db
+    environment:
+      PORT: ${PORT2}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
+      DB_NAME: ${DB_NAME3}
+      RABBITMQ_URL: ${RABBITMQ_URL}
+
+  shipment-service:
+    build:
+      context: ./shipment
+      dockerfile: Dockerfile
+    container_name: shipment-service
+    ports:
+      - "3003:3003"
+    depends_on:
+      - db
+    environment:
+      PORT: ${PORT3}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
+      DB_NAME: ${DB_NAME4}
+      RABBITMQ_URL: ${RABBITMQ_URL}
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: nest-pgadmin4new
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+    ports:
+      - "5050:80"
+    depends_on:
+      - db
+
+volumes:
+  pgdata:
