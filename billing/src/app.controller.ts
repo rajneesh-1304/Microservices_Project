@@ -1,7 +1,7 @@
-import { Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { AppService } from './app.service';
 
-@Controller('billing')
+@Controller('api')
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
@@ -13,5 +13,15 @@ export class AppController {
   @Post('seedbills')
   seedBilling() {
     return this.appService.seedBilling();
+  }
+
+  @Post('order')
+  bill(@Body() data) {
+    return this.appService.createBill(data);
+  }
+
+  @Patch('order/:id/placed')
+  placeOrder(@Param() id){
+    this.appService.placeOrder(id);
   }
 }

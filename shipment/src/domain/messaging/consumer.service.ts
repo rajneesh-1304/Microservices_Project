@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { RabbitConnection } from './rabbit.connection';
 import { DataSource } from 'typeorm';
 import { Inbox } from 'src/infrastructure/inbox/inbox.entity';
+import { ShippingProduct } from '../shipping_products.entity';
 
 @Injectable()
 export class ShipmentConsumer {
@@ -12,10 +13,10 @@ export class ShipmentConsumer {
     await channel.assertExchange('billing.direct', 'direct', {
       durable: true,
     });
-
+    const shippingRepo = this.dataSource.getRepository(ShippingProduct);
     const inboxRepo = this.dataSource.getRepository(Inbox);
     await channel.assertExchange('orders.fanout', 'fanout', { durable: true });
-    const orderShipQueue = await channel.assertQueue('order.shipmentQueue', {durable:true});
+    const orderShipQueue = await channel.assertQueue('order.shipmentQueue', { durable: true });
     await channel.bindQueue(orderShipQueue.queue, 'orders.fanout', '');
 
 
@@ -31,32 +32,42 @@ export class ShipmentConsumer {
     channel.consume(orderShipQueue.queue, async (msg) => {
       if (!msg) return;
       const data = JSON.parse(msg.content.toString());
-      console.log(data, 'this is data')
-      const isExist = await inboxRepo.findOne({where: {message: data.message.order_id}});
-      console.log(isExist, 'this is isexist')
-      if(!isExist){
-        const entry = inboxRepo.create({message: data.message.order_id, handler:'Placed'})
+
+      const isExist = await inboxRepo.findOne({ where: { message: data.message.order_id } });
+      if (!isExist) {
+        const entry = inboxRepo.create({ message: data.message.order_id, handler: 'Placed' })
         await inboxRepo.save(entry);
       }
       console.log('shipment received the messages...after sales');
       channel.ack(msg);
     });
-    
+
     channel.consume(shipmentQueue.queue, async (msg) => {
       if (!msg) return;
       const data = JSON.parse(msg.content.toString());
-      const isPresent = await inboxRepo.findOne({where: {message: data.message.order_id, handler:'Placed'}});
-      console.log(isPresent, "isPresetn")
-      if(isPresent){
-        data.message='Ready'
+      console.log(data);
+      const products = data.message.products;
+      console.log(products, 'We are products');
+      const isPresent = await inboxRepo.findOne({ where: { message: data.message.order_id, handler: 'Placed' } });
+      if (isPresent) {
+        for (let p of products) {
+          const isPres = await shippingRepo.findOne({ where: { product_id: p.product_id } });
+          if (isPres.quantity_on_hand < p.quantity) {
+            data.message = 'Failed'
+            channel.publish('orders.placed', "direct",
+              Buffer.from(JSON.stringify(data)),
+              { persistent: true }
+            )
+            return;
+          }
+        }
+        data.message = 'Ready'
         channel.publish(
-        'orders.placed',
-        'direct',
-        Buffer.from(JSON.stringify(data)),
-        { persistent: true }
-      );
-      }else{
-        //requeue
+          'orders.placed',
+          'direct',
+          Buffer.from(JSON.stringify(data)),
+          { persistent: true }
+        );
       }
 
       channel.ack(msg);

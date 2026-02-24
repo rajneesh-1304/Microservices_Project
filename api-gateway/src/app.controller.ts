@@ -1,8 +1,9 @@
-import { Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post } from '@nestjs/common';
 import { AppService } from './app.service';
 import axios from 'axios';
+import { v4 as uuidv4 } from 'uuid';
 
-@Controller()
+@Controller('api')
 export class AppController {
   constructor(private readonly appService: AppService) { }
 
@@ -18,5 +19,32 @@ export class AppController {
     await axios.post('http://shipment-service:3003/shipping/seedshipping');
 
     return { message: 'All services seeded successfully' };
+  }
+
+  @Post('order')
+  async order(@Body() data: any){
+    const idd=uuidv4();
+    const orderData = {
+      id: idd,
+      userId: data.userId,
+      products: data.products,
+    }
+
+    const billingData = {
+      orderId: idd,
+      billing_account_id: data.billing_account_id,
+      totalamount: data.totalamount
+    }
+
+    const shipmentData = {
+      orderId: idd,
+      address: data.address,
+      products: data.products
+    }
+
+    await axios.post('http://billing-service:3001/api/order', orderData);
+    await axios.post('http://sales-service:3002/api/bill', billingData);
+    await axios.post('http://shipment-service:3003/api/shipment', shipmentData);
+    return {message: 'Order placed successfully!'};
   }
 }

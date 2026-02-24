@@ -16,8 +16,8 @@ export class AppController {
     return this.appService.seedSales();
   }
 
-  @Post("order")
-  createOrder(@Body() order: any) {
+  @Post('order')
+  createOrder(@Body() order:any) {
     return this.appService.createorder(order);
   }
 }

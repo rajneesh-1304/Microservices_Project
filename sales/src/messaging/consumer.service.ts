@@ -15,7 +15,7 @@ export class ConsumerService {
         });
         const sq = await channel.assertQueue('billing.queue', { durable: true });
         await channel.bindQueue(sq.queue, 'billing.direct', 'direct');
-        let d: any=null;
+        let d: any = null;
 
         await channel.assertExchange('orders.placed', 'direct', { durable: true });
         const placedQueue = await channel.assertQueue('placed.queue', { durable: true });
@@ -25,7 +25,7 @@ export class ConsumerService {
             if (!msg) return;
 
             const data = JSON.parse(msg.content.toString());
-            d=data;
+            d = data;
             if (data.message === 'Payment Success') {
                 await repo.update(data.order_id, { status: 'BILLED' });
                 console.log('Order billed...');
@@ -43,7 +43,11 @@ export class ConsumerService {
             if (data.message === 'Ready') {
                 await repo.update(data.order_id, { status: 'READY_TO_SHIP' });
                 console.log('Order is ready to ship...')
-            } else {
+            } else if (data.message === 'Failed') { 
+                await repo.update(data.order_id, { status: 'CANCELLED' });
+                console.log('Order shipment failed...')
+            }
+            else {
                 await repo.update(data.order_id, { status: 'CANCELLED' })
                 console.log('Order is cancelled...');
             }

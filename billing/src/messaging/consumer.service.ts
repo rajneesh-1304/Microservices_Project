@@ -26,8 +26,9 @@ export class BillingConsumerService implements OnModuleInit {
     const sq = await channel.assertQueue('billing.queue', { durable: true });
     await channel.bindQueue(sq.queue, 'billing.direct', 'direct');
     channel.consume(q.queue, async (msg) => {
-      if (!msg) return;
 
+      if (!msg) return;
+      
       const data = JSON.parse(msg.content.toString());
       const isPresent = await repo.findOne({ where: { messageId: data.id } });
       if (isPresent) {
@@ -49,7 +50,7 @@ export class BillingConsumerService implements OnModuleInit {
           Buffer.from(JSON.stringify({message:"Payment Success", order_id:data.message.order_id})),
           { persistent: true }
         );
-        channel.publish('orders.shipment', 'direct', Buffer.from(JSON.stringify({message:"Payment Success", order_id:data.message.order_id})), { persistent: true })
+        channel.publish('orders.shipment', 'direct', Buffer.from(JSON.stringify({message:"Payment Success", order_id:data.message.order_id, address:data.message.address, products:data.message.products})), { persistent: true })
       } else {
         channel.publish(
           'billing.direct',

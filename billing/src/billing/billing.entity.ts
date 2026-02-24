@@ -11,4 +11,10 @@ export class Billing{
 
     @Column()
     billing_accound_id: string;
+
+    @Column({ type: 'decimal', precision: 10, scale: 2 })
+    totalamount: number;
+
+    @Column()
+    status: 'Pending' | 'Placed' | 'Ready_To_Ship' | 'Cancelled' | 'Payment_Failed' | 'Billed'
 }
