@@ -1,8 +1,8 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { AppService } from './app.service';
 import { PublisherService } from './messaging/publisher.service';
 
-@Controller('sales')
+@Controller('api')
 export class AppController {
   constructor(private readonly appService: AppService, private readonly publisher: PublisherService) {}
 
@@ -19,5 +19,10 @@ export class AppController {
   @Post('order')
   createOrder(@Body() order:any) {
     return this.appService.createorder(order);
+  }
+
+  @Patch('order/:id')
+  placeOrder(@Param('id') id:string) {
+    this.appService.placeOrder(id);
   }
 }

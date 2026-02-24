@@ -15,13 +15,9 @@ export class AppController {
     return this.appService.seedBilling();
   }
 
-  @Post('order')
+  @Post('bill')
   bill(@Body() data) {
     return this.appService.createBill(data);
   }
 
-  @Patch('order/:id/placed')
-  placeOrder(@Param() id){
-    this.appService.placeOrder(id);
-  }
 }

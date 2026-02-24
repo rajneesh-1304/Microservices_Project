@@ -3,6 +3,7 @@ import { RabbitConnection } from './rabbit.connection';
 import { DataSource } from 'typeorm';
 import { Inbox } from 'src/infrastructure/inbox/inbox.entity';
 import { ShippingProduct } from '../shipping_products.entity';
+import { Shipment } from '../shipment.entity';
 
 @Injectable()
 export class ShipmentConsumer {
@@ -45,12 +46,13 @@ export class ShipmentConsumer {
     channel.consume(shipmentQueue.queue, async (msg) => {
       if (!msg) return;
       const data = JSON.parse(msg.content.toString());
-      console.log(data);
-      const products = data.message.products;
-      console.log(products, 'We are products');
       const isPresent = await inboxRepo.findOne({ where: { message: data.message.order_id, handler: 'Placed' } });
       if (isPresent) {
-        for (let p of products) {
+        const shippingRepo = this.dataSource.getRepository(ShippingProduct);
+        const shipment = this.dataSource.getRepository(Shipment);
+        const products =await shipment.findOne({ where: { order_id: data.message.order_id } });
+
+        for (let p of products.products) {
           const isPres = await shippingRepo.findOne({ where: { product_id: p.product_id } });
           if (isPres.quantity_on_hand < p.quantity) {
             data.message = 'Failed'

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { ShippingProduct } from './domain/shipping_products.entity';
+import { Shipment } from './domain/shipment.entity';
 
 @Injectable()
 export class AppService {
@@ -23,7 +24,15 @@ export class AppService {
     return { message: 'Shipping seeded' };
   }
 
-  async createShipment(data){
-
+  async createShipment(data: any){
+    const shippingRepo = this.dataSource.getRepository(Shipment);
+    const shpment = shippingRepo.create({
+      order_id: data.orderId,
+      address: data.address,
+      products: data.products.map((p) => ({
+        product_id: p.product_id,
+        quantity: p.quantity,})),
+    });
+    await shippingRepo.save(shpment);
   }
 }

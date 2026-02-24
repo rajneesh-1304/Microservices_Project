@@ -1,9 +1,9 @@
-import { Column, Entity, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, PrimaryColumn, PrimaryGeneratedColumn } from "typeorm";
 
 
 @Entity("Order")
 export class Order {
-  @Column()
+  @PrimaryColumn()
   order_id: string;
 
   @Column()
@@ -15,7 +15,7 @@ export class Order {
   })
   products: {
     product_id: string;
-    price: number;
+    quantity: number;
   }[];
 
   @Column({ default: "PENDING" })

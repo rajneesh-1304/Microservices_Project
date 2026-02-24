@@ -14,7 +14,4 @@ export class Billing{
 
     @Column({ type: 'decimal', precision: 10, scale: 2 })
     totalamount: number;
-
-    @Column()
-    status: 'Pending' | 'Placed' | 'Ready_To_Ship' | 'Cancelled' | 'Payment_Failed' | 'Billed'
 }

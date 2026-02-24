@@ -26,15 +26,11 @@ export class AppService {
 
   async createBill(data){
     const billingRepo = this.dataSource.getRepository(Billing);
-    const bills = billingRepo.create(data);
+    const bills = billingRepo.create({
+      order_id: data.orderId,
+      billing_accound_id: data.billing_account_id,
+      totalamount: data.totalamount,
+    });
     await billingRepo.save(bills);
-  }
-
-  async placeOrder(id){
-    const billingRepo = this.dataSource.getRepository(Billing);
-    const bill = await billingRepo.findOne({where:{id}});
-    if(bill){
-      await billingRepo.update(id, {status: 'Placed'});
-    }
   }
 }

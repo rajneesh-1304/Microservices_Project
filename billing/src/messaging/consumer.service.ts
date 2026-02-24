@@ -37,20 +37,25 @@ export class BillingConsumerService implements OnModuleInit {
       }
       const billingRepo = this.dataSource.getRepository(Billing);
       const accountRepo = this.dataSource.getRepository(BillingAccount);
-      const isPresentAccount = await accountRepo.findOne({ where: { billing_account_id: msg.billing_accound_id } });
+      const isPresentBill:any = await billingRepo.findOne({ where: { order_id: data.message.order_id } });
+      const isPresentAccount = await accountRepo.findOne({ where: { billing_account_id: isPresentBill?.billing_accound_id } });
+      if (!isPresentBill) {
+        throw new NotFoundException('Order Bill not found');
+      }
       if (!isPresentAccount) {
         throw new NotFoundException('Account detail not found');
       }
-      if (isPresentAccount.balance > data.message.products[0].price) {
+      if (isPresentAccount.balance > isPresentBill.totalamount) {
         await repo.save({ messageId: data.id, handler: "DEFAULT" });
-        await billingRepo.save({ order_id: data.message.order_id, billing_accound_id: data.message.billing_account_id })
+        const amountLeft = isPresentAccount.balance - isPresentBill.totalamount;
+        await accountRepo.update(isPresentAccount.billing_account_id, { balance: amountLeft });
         channel.publish(
           'billing.direct',
           'direct',
           Buffer.from(JSON.stringify({message:"Payment Success", order_id:data.message.order_id})),
           { persistent: true }
         );
-        channel.publish('orders.shipment', 'direct', Buffer.from(JSON.stringify({message:"Payment Success", order_id:data.message.order_id, address:data.message.address, products:data.message.products})), { persistent: true })
+        channel.publish('orders.shipment', 'direct', Buffer.from(JSON.stringify({message:"Payment Success", order_id:data.message.order_id})), { persistent: true })
       } else {
         channel.publish(
           'billing.direct',

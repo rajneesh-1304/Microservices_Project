@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Post } from '@nestjs/common';
 import { AppService } from './app.service';
 
-@Controller('shipping')
+@Controller('api')
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
@@ -15,7 +15,7 @@ export class AppController {
     return this.appService.seedShipping();
   }
 
-  @Post('')
+  @Post('shipment')
   createShipment(@Body() data){
     return this.appService.createShipment(data);
   }
