@@ -28,26 +28,26 @@ export class ConsumerService {
             d=data;
             if (data.message === 'Payment Success') {
                 await repo.update(data.order_id, { status: 'BILLED' });
+                console.log('Order billed...');
             } else {
                 await repo.update(data.order_id, { status: 'PAYMENT_FAILED' })
+                console.log('Payment failed...');
             }
 
             channel.ack(msg);
         });
 
-        const dd = repo.findOne({where:{order_id: d.order_id}});
         channel.consume(placedQueue.queue, async (msg) => {
             if (!msg) return;
-
-
             const data = JSON.parse(msg.content.toString());
             if (data.message === 'Ready') {
                 await repo.update(data.order_id, { status: 'READY_TO_SHIP' });
+                console.log('Order is ready to ship...')
             } else {
                 await repo.update(data.order_id, { status: 'CANCELLED' })
+                console.log('Order is cancelled...');
             }
-
             channel.ack(msg);
-        })
+        });
     }
 }

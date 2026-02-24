@@ -2,6 +2,7 @@ import { DataSource, DataSourceOptions } from 'typeorm';
 import * as dotenv from 'dotenv';
 import { Outbox } from './infrastructure/outbox/outbox.entity';
 import { ShippingProduct } from './domain/shipping_products.entity';
+import { Inbox } from './infrastructure/inbox/inbox.entity';
 
 
 dotenv.config();
@@ -14,7 +15,7 @@ const rawDataSourceOptions = {
   password: process.env.DB_PASS,
   database: process.env.DB_NAME,
   synchronize: false,
-  entities: [ShippingProduct, Outbox ],
+  entities: [ShippingProduct, Outbox, Inbox],
   migrations: ['dist/migrations/*.js'],
   seeds: ['dist/seeds/**/*.js'],
   logging: true,

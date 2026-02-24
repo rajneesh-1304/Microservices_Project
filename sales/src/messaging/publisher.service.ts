@@ -10,14 +10,15 @@ export class PublisherService {
     
 
     await channel.assertExchange('orders.fanout', 'fanout', { durable: true });
+    const shipmentQueue = await channel.assertQueue('order.shipmentQueue', {durable:true});
+    await channel.bindQueue(shipmentQueue.queue, 'orders.fanout', '');
+    const q = await channel.assertQueue('orders.queue', { durable: true });
+    await channel.bindQueue(q.queue, 'orders.fanout', '');
     channel.publish(
       'orders.fanout',
       'fanout',
       Buffer.from(JSON.stringify(message)),
       { persistent: true }
     );
-
-    const q = await channel.assertQueue('orders.queue', { durable: true });
-    await channel.bindQueue(q.queue, 'orders.fanout', '');
   }
 }
