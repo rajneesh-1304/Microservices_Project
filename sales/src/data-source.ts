@@ -3,6 +3,7 @@ import * as dotenv from 'dotenv';
 import { SalesProduct } from './sales.entity';
 import { Outbox } from './outbox/outbox.entity';
 import { Order } from './order/order.entity';
+import { Inbox } from './inbox/inbox.entity';
 
 
 dotenv.config();
@@ -15,7 +16,7 @@ const rawDataSourceOptions = {
   password: process.env.DB_PASS,
   database: process.env.DB_NAME,
   synchronize: false,
-  entities: [SalesProduct, Outbox, Order],
+  entities: [SalesProduct, Outbox, Order, Inbox],
   migrations: ['dist/migrations/*.js'],
   seeds: ['dist/seeds/**/*.js'],
   logging: true,

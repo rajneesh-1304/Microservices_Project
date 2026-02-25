@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { BillingAccount } from './billing_account.entity';
 import { DataSource } from 'typeorm';
+import { Billing } from './billing/billing.entity';
 
 @Injectable()
 export class AppService {
@@ -21,5 +22,15 @@ export class AppService {
 
     await repo.save(data);
     return { message: 'Billing seeded' };
+  }
+
+  async createBill(data){
+    const billingRepo = this.dataSource.getRepository(Billing);
+    const bills = billingRepo.create({
+      order_id: data.orderId,
+      billing_accound_id: data.billing_account_id,
+      totalamount: data.totalamount,
+    });
+    await billingRepo.save(bills);
   }
 }

@@ -11,4 +11,7 @@ export class Billing{
 
     @Column()
     billing_accound_id: string;
+
+    @Column({ type: 'decimal', precision: 10, scale: 2 })
+    totalamount: number;
 }

@@ -18,14 +18,18 @@ export class BillingConsumerService implements OnModuleInit {
     await channel.assertExchange('billing.direct', 'direct', {
       durable: true,
     });
-
-     await channel.assertExchange('orders.shipment', 'direct', { durable: true });
+    await channel.assertExchange('order.retry.exchange', 'direct', {
+      durable: true,
+    });
+    await channel.assertExchange('orders.shipment', 'direct', { durable: true });
 
     const shipmentQueue = await channel.assertQueue('shipment.queue', { durable: true });
     await channel.bindQueue(shipmentQueue.queue, 'orders.shipment', 'direct');
     const sq = await channel.assertQueue('billing.queue', { durable: true });
     await channel.bindQueue(sq.queue, 'billing.direct', 'direct');
+    const shipmentFailed = await channel.assertQueue('shipmentFailed.queue', { durable: true });
     channel.consume(q.queue, async (msg) => {
+
       if (!msg) return;
 
       const data = JSON.parse(msg.content.toString());
@@ -34,32 +38,83 @@ export class BillingConsumerService implements OnModuleInit {
         channel.ack(msg);
         return;
       }
-      const billingRepo = this.dataSource.getRepository(Billing);
-      const accountRepo = this.dataSource.getRepository(BillingAccount);
-      const isPresentAccount = await accountRepo.findOne({ where: { billing_account_id: msg.billing_accound_id } });
-      if (!isPresentAccount) {
-        throw new NotFoundException('Account detail not found');
+      let retryCount = 0;
+      let success = false;
+      while (retryCount < 5) {
+        try {
+          const billingRepo = this.dataSource.getRepository(Billing);
+          const accountRepo = this.dataSource.getRepository(BillingAccount);
+          const isPresentBill: any = await billingRepo.findOne({ where: { order_id: data.message.order_id } });
+          const isPresentAccount = await accountRepo.findOne({ where: { billing_account_id: isPresentBill?.billing_accound_id } });
+          if (!isPresentBill) {
+            throw new NotFoundException('Order Bill not found');
+          }
+          if (!isPresentAccount) {
+            throw new NotFoundException('Account detail not found');
+          }
+
+          if (Number(isPresentAccount.balance) >= Number(isPresentBill.totalamount)) {
+            await repo.save({ messageId: data.id, handler: "DEFAULT" });
+            const amountLeft = isPresentAccount.balance - isPresentBill.totalamount;
+            await accountRepo.update(isPresentAccount.billing_account_id, { balance: amountLeft });
+            channel.publish(
+              'billing.direct',
+              'direct',
+              Buffer.from(JSON.stringify({ message: "Payment Success", order_id: data.message.order_id })),
+              { persistent: true }
+            );
+            channel.publish('orders.shipment', 'direct', Buffer.from(JSON.stringify({ message: "Payment Success", order_id: data.message.order_id })), { persistent: true })
+          } else {
+            channel.publish(
+              'billing.direct',
+              'direct',
+              Buffer.from(JSON.stringify({ message: "Payment Failed", order_id: data.message.order_id })),
+              { persistent: true }
+            );
+          }
+
+          success = true;
+          break;
+        } catch (error) {
+          retryCount++;
+        }
       }
-      if (isPresentAccount.balance > data.message.products[0].price) {
-        await repo.save({ messageId: data.id, handler: "DEFAULT" });
-        await billingRepo.save({ order_id: data.message.order_id, billing_accound_id: data.message.billing_account_id })
+      if (!success) {
         channel.publish(
-          'billing.direct',
-          'direct',
-          Buffer.from(JSON.stringify({message:"Payment Success", order_id:data.message.order_id})),
-          { persistent: true }
+          'orders.retry.exchange',
+          'routingKey',
+          Buffer.from(JSON.stringify(msg)),
+          { persistent: true },
         );
-        channel.publish('orders.shipment', 'direct', Buffer.from(JSON.stringify({message:"Payment Success", order_id:data.message.order_id})), { persistent: true })
-      } else {
-        channel.publish(
-          'billing.direct',
-          'direct',
-          Buffer.from(JSON.stringify({message:"Payment Failed", order_id:data.message.order_id})),
-          { persistent: true }
-        );
+
+        const retryQueue = await channel.assertQueue('orders.retry.queue', {
+          durable: true,
+        })
+
+        await channel.bindQueue(retryQueue.queue, 'orders.retry.exchange', 'routingKey');
       }
 
       channel.ack(msg);
     });
+
+    channel.consume(shipmentFailed.queue, async (msg) => {
+      if (!msg) return;
+      const data = JSON.parse(msg.content.toString());
+      console.log(data);
+      const billingRepo = this.dataSource.getRepository(Billing);
+      const accountRepo = this.dataSource.getRepository(BillingAccount);
+      const isPresent = await billingRepo.findOne({ where: { order_id: data.order_id } })
+      const amount: any = await accountRepo.findOne({ where: { billing_account_id: isPresent?.billing_accound_id } });
+      const refund = amount?.balance + isPresent?.totalamount;
+      await accountRepo.update({ billing_account_id: isPresent?.billing_accound_id }, { balance: refund });
+
+      channel.publish(
+        'billing.direct',
+        'direct',
+        Buffer.from(JSON.stringify({ message: "Refunded", order_id: data.message.order_id })),
+        { persistent: true }
+      );
+      channel.ack(msg);
+    })
   }
 }

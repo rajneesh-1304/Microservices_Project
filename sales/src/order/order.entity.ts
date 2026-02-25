@@ -1,10 +1,10 @@
-import { Column, Entity, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, PrimaryColumn, PrimaryGeneratedColumn } from "typeorm";
 
 
 @Entity("Order")
 export class Order {
-  @PrimaryGeneratedColumn("uuid")
-  order_id: number;
+  @PrimaryColumn()
+  order_id: string;
 
   @Column()
   user_id: string;
@@ -15,11 +15,8 @@ export class Order {
   })
   products: {
     product_id: string;
-    price: number;
+    quantity: number;
   }[];
-
-  @Column()
-  billing_account_id: string;
 
   @Column({ default: "PENDING" })
   status: 'PENDING' | 'PAYMENT_FAILED' | 'PLACED' | 'BILLED' | 'READY_TO_SHIP' | 'CANCELLED'

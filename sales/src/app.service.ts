@@ -6,13 +6,13 @@ import { Order } from './order/order.entity';
 
 @Injectable()
 export class AppService {
-  constructor(private dataSource: DataSource) {}
+  constructor(private dataSource: DataSource) { }
   getHello(): string {
     return 'Hello World!';
   }
 
-  async seedSales(){
-    const repo = this.dataSource.getRepository(SalesProduct); 
+  async seedSales() {
+    const repo = this.dataSource.getRepository(SalesProduct);
     const data = [
       { product_id: 'b17f77ae-5d5d-4183-a1f5-979c45a5f57f', price: 89.99 },
       { product_id: '2b8a7b36-fb21-4ad8-a124-25d607c3e55c', price: 59.99 },
@@ -26,13 +26,32 @@ export class AppService {
   }
 
   async createorder(order: any) {
-    const outRepo = this.dataSource.getRepository(Outbox);
     const orderRepo = this.dataSource.getRepository(Order);
-    const orderEntity = orderRepo.create(order);
+    const orderEntity = orderRepo.create({
+      order_id: order.id,
+      user_id: order.userId,
+      products: order.products.map((p) => ({
+        product_id: p.product_id,
+        quantity: p.quantity,
+      })),
+    });
     await orderRepo.save(orderEntity);
-    const currentOrder:any = await orderRepo.findOne({where:{user_id: order.user_id}});
-    const data = outRepo.create({ message: currentOrder });
-    await outRepo.save(data);
-    return { message: "Order placed successfully" };
+    return { message: "Order created successfully" };
   }
+
+  async placeOrder(id: string) {
+    const orderRepo = this.dataSource.getRepository(Order);
+    const order = await orderRepo.findOne({ where: { order_id: id } });
+    if (!order) {
+      return { message: 'Order not found' };
+    } else {
+      const outRepo = this.dataSource.getRepository(Outbox);
+      const data = outRepo.create({ message: order });
+      await outRepo.save(data);
+      order.status = 'PLACED';
+      await orderRepo.save(order);
+      return { message: 'Order placed successfully' };
+    }
+  }
+
 }
