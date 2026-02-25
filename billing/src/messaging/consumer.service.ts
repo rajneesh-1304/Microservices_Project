@@ -18,7 +18,9 @@ export class BillingConsumerService implements OnModuleInit {
     await channel.assertExchange('billing.direct', 'direct', {
       durable: true,
     });
-
+    await channel.assertExchange('order.retry.exchange', 'direct', {
+      durable: true,
+    });
     await channel.assertExchange('orders.shipment', 'direct', { durable: true });
 
     const shipmentQueue = await channel.assertQueue('shipment.queue', { durable: true });
@@ -77,41 +79,41 @@ export class BillingConsumerService implements OnModuleInit {
           retryCount++;
         }
       }
-      if(!success) {
-          channel.publish(
-            'orders.retry.exchange',
-            'routingKey',
-            Buffer.from(JSON.stringify(msg)),
-            { persistent: true },
-          );
+      if (!success) {
+        channel.publish(
+          'orders.retry.exchange',
+          'routingKey',
+          Buffer.from(JSON.stringify(msg)),
+          { persistent: true },
+        );
 
-          const retryQueue = await channel.assertQueue('orders.retry.queue', {
-            durable: true,
-          })
+        const retryQueue = await channel.assertQueue('orders.retry.queue', {
+          durable: true,
+        })
 
-          await channel.bindQueue(retryQueue.queue, 'orders.retry.exchange', 'routingKey');
-        }
+        await channel.bindQueue(retryQueue.queue, 'orders.retry.exchange', 'routingKey');
+      }
 
       channel.ack(msg);
     });
 
-    channel.consume(shipmentFailed.queue, async(msg)=>{
+    channel.consume(shipmentFailed.queue, async (msg) => {
       if (!msg) return;
       const data = JSON.parse(msg.content.toString());
       console.log(data);
       const billingRepo = this.dataSource.getRepository(Billing);
       const accountRepo = this.dataSource.getRepository(BillingAccount);
-      const isPresent = await billingRepo.findOne({where:{order_id: data.order_id}})
-      const amount:any = await accountRepo.findOne({where: {billing_account_id:isPresent?.billing_accound_id}});
-      const refund = amount?.balance+isPresent?.totalamount;
-      await accountRepo.update({billing_account_id:isPresent?.billing_accound_id},{balance: refund});
+      const isPresent = await billingRepo.findOne({ where: { order_id: data.order_id } })
+      const amount: any = await accountRepo.findOne({ where: { billing_account_id: isPresent?.billing_accound_id } });
+      const refund = amount?.balance + isPresent?.totalamount;
+      await accountRepo.update({ billing_account_id: isPresent?.billing_accound_id }, { balance: refund });
 
       channel.publish(
-              'billing.direct',
-              'direct',
-              Buffer.from(JSON.stringify({ message: "Refunded", order_id: data.message.order_id })),
-              { persistent: true }
-            );
+        'billing.direct',
+        'direct',
+        Buffer.from(JSON.stringify({ message: "Refunded", order_id: data.message.order_id })),
+        { persistent: true }
+      );
       channel.ack(msg);
     })
   }
