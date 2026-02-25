@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { AppService } from './app.service';
+import { CreateOrderDto } from './dto/dto';
 
 @Controller('api')
 export class AppController {
@@ -16,7 +17,7 @@ export class AppController {
   }
 
   @Post('bill')
-  bill(@Body() data) {
+  bill(@Body() data:CreateOrderDto) {
     return this.appService.createBill(data);
   }
 

@@ -2,6 +2,7 @@ import { Body, Controller, Get, Post } from '@nestjs/common';
 import { AppService } from './app.service';
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
+import { CreateOrderDto } from './dto/dto';
 
 @Controller('api')
 export class AppController {
@@ -22,7 +23,7 @@ export class AppController {
   }
 
   @Post('order')
-  async order(@Body() data: any){
+  async order(@Body() data: CreateOrderDto){
     console.log(data);
     const idd=uuidv4();
     const orderData = {

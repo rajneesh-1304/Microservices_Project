@@ -111,7 +111,6 @@ export class ShipmentConsumer {
         const retryQueue = await channel.assertQueue('shipment.retry.queue', {
             durable: true,
           })
-
           await channel.bindQueue(retryQueue.queue, 'shipment.retry.exchange', 'routingKey');
       }
 

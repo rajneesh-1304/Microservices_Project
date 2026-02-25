@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { AppService } from './app.service';
 import { PublisherService } from './messaging/publisher.service';
+import { CreateOrderDto } from './dto/dto';
 
 @Controller('api')
 export class AppController {
@@ -17,7 +18,7 @@ export class AppController {
   }
 
   @Post('order')
-  createOrder(@Body() order:any) {
+  createOrder(@Body() order:CreateOrderDto) {
     return this.appService.createorder(order);
   }
 
