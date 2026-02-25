@@ -14,9 +14,9 @@ export class AppController {
 
   @Post('seed/all')
   async seedAll() {
-    await axios.post('http://localhost:3002/api/seedbills');
-    await axios.post('http://localhost:3001/api/seedsales');
-    await axios.post('http://localhost:3003/api/seedshipping');
+    await axios.post('http://billing-service:3002/api/seedbills');
+    await axios.post('http://sales-service:3001/api/seedsales');
+    await axios.post('http://shipment-service:3003/api/seedshipping');
 
     return { message: 'All services seeded successfully' };
   }
@@ -43,9 +43,9 @@ export class AppController {
       products: data.products
     }
 
-    await axios.post('http://localhost:3001/api/order', orderData);
-    await axios.post('http://localhost:3002/api/bill', billingData);
-    await axios.post('http://localhost:3003/api/shipment', shipmentData);
+    await axios.post('http://sales-service:3001/api/order', orderData);
+    await axios.post('http://billing-service:3002/api/bill', billingData);
+    await axios.post('http://shipment-service:3003/api/shipment', shipmentData);
     return {message: 'Order created successfully!'};
   }
 }
