@@ -29,9 +29,9 @@ export class ShipmentConsumer {
     await channel.bindQueue(placedQueue.queue, 'orders.placed', 'direct');
     const sq = await channel.assertQueue('billing.queue', { durable: true });
     await channel.bindQueue(sq.queue, 'billing.direct', 'direct');
-    await channel.assertExchange('orders.shipmentFailed', 'direct', { durable: true });
-    const failedShipment = await channel.assertQueue('failedShipment.queue', { durable: true });
-    await channel.bindQueue(failedShipment.queue, 'orders.shipmentFailed', 'direct');
+    await channel.assertExchange('shipment.failed', 'direct', { durable: true });
+    const shipmentFailed = await channel.assertQueue('shipmentFailed.queue', { durable: true });
+    await channel.bindQueue(shipmentFailed.queue, 'shipment.failed', 'direct');
 
     channel.consume(orderShipQueue.queue, async (msg) => {
       if (!msg) return;
@@ -49,48 +49,44 @@ export class ShipmentConsumer {
     channel.consume(shipmentQueue.queue, async (msg) => {
       if (!msg) return;
       const data = JSON.parse(msg.content.toString());
-      try {
+      const isPresent = await inboxRepo.findOne({ where: { message: data.order_id, handler: 'Placed' } });
+      if (isPresent) {
+        const isPresentAlready = await inboxRepo.findOne({ where: { message: isPresent.message, handler: 'Shiped' } });
+        if (!isPresentAlready) {
+          const shippingRepo = this.dataSource.getRepository(ShippingProduct);
+          const shipment = this.dataSource.getRepository(Shipment);
+          const products = await shipment.findOne({ where: { order_id: data.message.order_id } });
 
-        const isPresent = await inboxRepo.findOne({ where: { message: data.order_id, handler: 'Placed' } });
-        if (isPresent) {
-          const isPresentAlready = await inboxRepo.findOne({ where: { message: isPresent.message, handler: 'Shiped' } });
-          console.log(isPresentAlready, 'yes')
-          if (!isPresentAlready) {
-            const shippingRepo = this.dataSource.getRepository(ShippingProduct);
-            const shipment = this.dataSource.getRepository(Shipment);
-            const products = await shipment.findOne({ where: { order_id: data.message.order_id } });
-
-            for (let p of products.products) {
-              const isPres = await shippingRepo.findOne({ where: { product_id: p.product_id } });
-              if (isPres.quantity_on_hand < p.quantity) {
-                channel.publish('orders.placed', "direct",
-                  Buffer.from(JSON.stringify(data)),
-                  { persistent: true }
-                )
-                return;
-              }
-              const left = isPres.quantity_on_hand - p.quantity;
-              await shippingRepo.update({ product_id: p.product_id }, { quantity_on_hand: left });
+          for (let p of products.products) {
+            console.log(p.product_id)
+            const isPres = await shippingRepo.findOne({ where: { product_id: p.product_id} });
+            console.log(isPres);
+            if (Number(isPres.quantity_on_hand) < Number(p.quantity)) {
+              data.message = 'Failed'
+              channel.publish('orders.placed', "direct",
+                Buffer.from(JSON.stringify(data)),
+                { persistent: true }
+              )
+              channel.publish('shipment.failed', "direct",
+                Buffer.from(JSON.stringify(data)),
+                { persistent: true }
+              )
+              channel.ack(msg);
+              return;
             }
-            data.message = 'Ready'
-            const shiped = inboxRepo.create({ message: isPresent.message, handler: 'Shiped' });
-            await inboxRepo.save(shiped);
-            channel.publish(
-              'orders.placed',
-              'direct',
-              Buffer.from(JSON.stringify(data)),
-              { persistent: true }
-            );
+            const left = isPres.quantity_on_hand - p.quantity;
+            await shippingRepo.update({ product_id: p.product_id }, { quantity_on_hand: left });
           }
+          data.message = 'Ready'
+          const shiped= inboxRepo.create({message: isPresent.message, handler:'Shiped'});
+          await inboxRepo.save(shiped);
+          channel.publish(
+            'orders.placed',
+            'direct',
+            Buffer.from(JSON.stringify(data)),
+            { persistent: true }
+          );
         }
-      } catch (error) {
-        data.message = 'Failed Shipment'
-        channel.publish(
-          'orders.shipmentFailed',
-          'direct',
-          Buffer.from(JSON.stringify(data)),
-          { persistent: true }
-        );
       }
 
       channel.ack(msg);

@@ -25,7 +25,7 @@ export class BillingConsumerService implements OnModuleInit {
     await channel.bindQueue(shipmentQueue.queue, 'orders.shipment', 'direct');
     const sq = await channel.assertQueue('billing.queue', { durable: true });
     await channel.bindQueue(sq.queue, 'billing.direct', 'direct');
-    const failedShipment = await channel.assertQueue('failedShipment.queue', { durable: true });
+    const shipmentFailed = await channel.assertQueue('shipmentFailed.queue', { durable: true });
     channel.consume(q.queue, async (msg) => {
 
       if (!msg) return;
@@ -95,7 +95,7 @@ export class BillingConsumerService implements OnModuleInit {
       channel.ack(msg);
     });
 
-    channel.consume(failedShipment.queue, async(msg)=>{
+    channel.consume(shipmentFailed.queue, async(msg)=>{
       if (!msg) return;
       const data = JSON.parse(msg.content.toString());
       console.log(data);
